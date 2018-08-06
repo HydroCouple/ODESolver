@@ -9,6 +9,17 @@
 *.dll
 *.dylib
 
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+
 # Qt-es
 object_script.*.Release
 object_script.*.Debug
