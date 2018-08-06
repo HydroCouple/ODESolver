@@ -13,7 +13,7 @@ CONFIG += c++11
 CONFIG += debug_and_release
 CONFIG += optimize_full
 
-#DEFINES += ODESOLVER_LIBRARY
+DEFINES += ODESOLVER_LIBRARY
 DEFINES += USE_CHPC
 DEFINES += USE_OPENMP
 DEFINES += USE_MPI
@@ -226,4 +226,37 @@ CONFIG(release, debug|release) {
     MOC_DIR = $$RELEASE_EXTRAS/.moc
     RCC_DIR = $$RELEASE_EXTRAS/.qrc
     UI_DIR = $$RELEASE_EXTRAS/.ui
+
+
+     contains(DEFINES,ODESOLVER_LIBRARY){
+         #MacOS
+         macx{
+             DESTDIR = lib/macx
+          }
+
+         #Linux
+         linux{
+             DESTDIR = lib/linux
+          }
+
+         #Windows
+         win32{
+             DESTDIR = lib/win32
+          }
+     } else {
+         #MacOS
+         macx{
+             DESTDIR = bin/macx
+          }
+
+         #Linux
+         linux{
+             DESTDIR = bin/linux
+          }
+
+         #Windows
+         win32{
+             DESTDIR = bin/win32
+          }
+     }
 }

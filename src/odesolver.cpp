@@ -233,8 +233,6 @@ int ODESolver::euler(double y[], int n, double t, double dt, double yout[], Comp
   return 0;
 }
 
-
-
 int ODESolver::rk4(double y[], int n, double t, double dt, double yout[], ComputeDerivatives derivs, void* userData)
 {
   double tdt, dtt, dt6, *dym, *dyt, *yt, *dydt;
