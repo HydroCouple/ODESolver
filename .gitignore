@@ -52,3 +52,7 @@ target_wrapper.*
 
 # QtCreator CMake
 CMakeLists.txt.user*
+*.exp
+*.lib
+*.pdb
+*.rc
