@@ -41,7 +41,7 @@
 
 ODESolver::ODESolver(int size, SolverType solverType)
   : m_size(size),
-    m_maxSteps(10000),
+    m_maxSteps(50000),
     m_order(6),
     m_safety(0.9),
     m_pgrow(-0.2),
