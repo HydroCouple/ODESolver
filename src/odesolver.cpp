@@ -96,7 +96,7 @@ void ODESolver::initialize()
         m_solver = &ODESolver::solveCVODE;
 
 #ifdef USE_CVODE_OPENMP
-        m_cvy = N_VNew_OpenMP(m_size, omp_get_max_threads());
+        m_cvy = N_VNew_OpenMP(m_size, omp_get_num_threads());
 #else
         m_cvy = N_VNew_Serial(m_size);
 #endif
@@ -117,7 +117,7 @@ void ODESolver::initialize()
         m_solver = &ODESolver::solveCVODE;
 
 #ifdef USE_CVODE_OPENMP
-        m_cvy = N_VNew_OpenMP(m_size, omp_get_max_threads());
+        m_cvy = N_VNew_OpenMP(m_size, omp_get_num_threads());
 #else
         m_cvy = N_VNew_Serial(m_size);
 #endif
