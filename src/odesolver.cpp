@@ -91,7 +91,7 @@ void ODESolver::initialize()
       {
 
         m_cvodeSolver = CVodeCreate(CV_ADAMS, CV_FUNCTIONAL);
-        CVodeSetMaxHnilWarns(m_cvodeSolver,0);
+        CVodeSetMaxHnilWarns(m_cvodeSolver,1);
 
         m_solver = &ODESolver::solveCVODE;
 
@@ -113,7 +113,7 @@ void ODESolver::initialize()
       {
 
         m_cvodeSolver = CVodeCreate(CV_BDF, CV_FUNCTIONAL);
-        CVodeSetMaxHnilWarns(m_cvodeSolver,0);
+        CVodeSetMaxHnilWarns(m_cvodeSolver,1);
         m_solver = &ODESolver::solveCVODE;
 
 #ifdef USE_CVODE_OPENMP
@@ -223,8 +223,6 @@ int ODESolver::euler(double y[], int n, double t, double dt, double yout[], Comp
   {
     yout[i] = y[i] + dt * dydt[i];
   }
-
-
 
   delete[] dydt;
 
@@ -529,9 +527,9 @@ int ODESolver::solveCVODE(double y[], int n, double t, double dt, double yout[],
   double *y0 =  N_VGetArrayPointer_Serial(m_cvy);
 #endif
 
-  //#ifdef USE_OPENMP
-  //#pragma omp parallel for
-  //#endif
+#ifdef USE_OPENMP
+#pragma omp parallel for
+#endif
   for(int i = 0; i < n; i++)
   {
     y0[i] = y[i];
@@ -548,7 +546,13 @@ int ODESolver::solveCVODE(double y[], int n, double t, double dt, double yout[],
   double tNext = t+dt;
   double tOut = 0.0;
 
-  int result = CVode(m_cvodeSolver, tNext, ycvout, &tOut, CV_NORMAL);
+
+  int result = 0;
+
+  while (tOut < tNext)
+  {
+    result = CVode(m_cvodeSolver, tNext, ycvout, &tOut, CV_NORMAL);
+  }
 
   long currentIterations = 0;
   CVodeGetNumSteps(m_cvodeSolver, &currentIterations);
@@ -560,7 +564,6 @@ int ODESolver::solveCVODE(double y[], int n, double t, double dt, double yout[],
 #else
   N_VDestroy_Serial(ycvout);
 #endif
-
 
   return result;
 }
