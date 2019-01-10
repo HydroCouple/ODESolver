@@ -23,11 +23,18 @@
 
 #ifdef USE_CVODE
 #include <cvode/cvode.h>
+#include <cvode/cvode_spils.h>
 #include <nvector/nvector_serial.h>
+#include <sunlinsol/sunlinsol_spgmr.h>
+#include <sunlinsol/sunlinsol_spfgmr.h>
+#include <sunlinsol/sunlinsol_spbcgs.h>
+#include <sunlinsol/sunlinsol_sptfqmr.h>
+#include <sunlinsol/sunlinsol_pcg.h>
+#include <cvode/cvode_bandpre.h>
 #endif
 
 #ifdef USE_CVODE_OPENMP
-    #include <nvector/nvector_openmp.h>
+#include <nvector/nvector_openmp.h>
 #endif
 
 
@@ -47,7 +54,7 @@ ODESolver::ODESolver(int size, SolverType solverType)
     m_pgrow(-0.2),
     m_pshrnk(-0.25),
     m_errcon(1.89e-4),
-    m_relTol(1e-4),
+    m_relTol(1e-6),
     m_absTol(1e-8),
     m_yscal(nullptr),
     m_yerr(nullptr),
@@ -56,8 +63,11 @@ ODESolver::ODESolver(int size, SolverType solverType)
     m_solverType(solverType),
     #ifdef USE_CVODE
     m_cvodeSolver(nullptr),
+    m_solverIterationMethod(ODESolver::IterationMethod::FUNCTIONAL),
+    m_linearSolverType(ODESolver::LinearSolverType::GMRES),
+    m_linearSolver(nullptr),
     m_cvy (nullptr)
-     #endif
+  #endif
 {
 }
 
@@ -90,8 +100,9 @@ void ODESolver::initialize()
     case CVODE_ADAMS:
       {
 
-        m_cvodeSolver = CVodeCreate(CV_ADAMS, CV_FUNCTIONAL);
-        CVodeSetMaxHnilWarns(m_cvodeSolver,1);
+
+        m_cvodeSolver = CVodeCreate(CV_ADAMS, m_solverIterationMethod);
+//        CVodeSetMaxHnilWarns(m_cvodeSolver,1);
 
         m_solver = &ODESolver::solveCVODE;
 
@@ -107,13 +118,15 @@ void ODESolver::initialize()
         CVodeSetMaxOrd(m_cvodeSolver, std::min(m_order, 12));
         CVodeSStolerances(m_cvodeSolver, m_relTol, m_absTol);
 
+        initializeLinearSolver();
+
       }
       break;
     case CVODE_BDF:
       {
 
-        m_cvodeSolver = CVodeCreate(CV_BDF, CV_FUNCTIONAL);
-        CVodeSetMaxHnilWarns(m_cvodeSolver,1);
+        m_cvodeSolver = CVodeCreate(CV_BDF, m_solverIterationMethod);
+//        CVodeSetMaxHnilWarns(m_cvodeSolver,1);
         m_solver = &ODESolver::solveCVODE;
 
 #ifdef USE_CVODE_OPENMP
@@ -127,6 +140,8 @@ void ODESolver::initialize()
         CVodeSetMaxNumSteps(m_cvodeSolver, m_maxSteps);
         CVodeSetMaxOrd(m_cvodeSolver, std::min(m_order, 5));
         CVodeSStolerances(m_cvodeSolver, m_relTol, m_absTol);
+
+        initializeLinearSolver();
       }
       break;
 #endif
@@ -135,6 +150,53 @@ void ODESolver::initialize()
         m_solver = &ODESolver::rk4;
       }
       break;
+  }
+
+
+}
+
+void ODESolver::initializeLinearSolver()
+{
+  if(m_solverIterationMethod == ODESolver::IterationMethod::NEWTON)
+  {
+    switch (m_linearSolverType)
+    {
+      case GMRES:
+        {
+          m_linearSolver = SUNSPGMR(m_cvy, PREC_LEFT, 0);
+          CVSpilsSetLinearSolver(m_cvodeSolver, m_linearSolver);
+          CVBandPrecInit(m_cvodeSolver, m_size, 2, 2);
+        }
+        break;
+      case FGMRES:
+        {
+          m_linearSolver = SUNSPFGMR(m_cvy, PREC_LEFT, 0);
+          CVSpilsSetLinearSolver(m_cvodeSolver, m_linearSolver);
+          CVBandPrecInit(m_cvodeSolver, m_size, 2, 2);
+        }
+        break;
+      case Bi_CGStab:
+        {
+          m_linearSolver = SUNSPBCGS(m_cvy, PREC_LEFT, 0);
+          CVSpilsSetLinearSolver(m_cvodeSolver, m_linearSolver);
+          CVBandPrecInit(m_cvodeSolver, m_size, 2, 2);
+        }
+        break;
+      case TFQMR:
+        {
+          m_linearSolver = SUNSPTFQMR(m_cvy, PREC_LEFT, 0);
+          CVSpilsSetLinearSolver(m_cvodeSolver, m_linearSolver);
+          CVBandPrecInit(m_cvodeSolver, m_size, 2, 2);
+        }
+        break;
+      case PCG:
+        {
+          m_linearSolver = SUNPCG(m_cvy, PREC_LEFT, 0);
+          CVSpilsSetLinearSolver(m_cvodeSolver, m_linearSolver);
+          CVBandPrecInit(m_cvodeSolver, m_size, 2, 2);
+        }
+        break;
+    }
   }
 }
 
@@ -156,6 +218,26 @@ ODESolver::SolverType ODESolver::solverType() const
 void ODESolver::setSolverType(SolverType solverType)
 {
   m_solverType = solverType;
+}
+
+ODESolver::IterationMethod ODESolver::solverIterationMethod() const
+{
+  return m_solverIterationMethod;
+}
+
+void ODESolver::setSolverIterationMethod(IterationMethod iterationMethod)
+{
+  m_solverIterationMethod = iterationMethod;
+}
+
+ODESolver::LinearSolverType ODESolver::linearSolverType() const
+{
+  return m_linearSolverType;
+}
+
+void ODESolver::setLinearSolverType(LinearSolverType linearSolverType)
+{
+  m_linearSolverType = linearSolverType;
 }
 
 int ODESolver::maxIterations() const
@@ -602,6 +684,11 @@ void ODESolver::clearMemory()
 
     CVodeFree(&m_cvodeSolver);
     m_cvodeSolver = nullptr;
+
+    if(m_linearSolver)
+    {
+      SUNLinSolFree(m_linearSolver);
+    }
   }
 #endif
 

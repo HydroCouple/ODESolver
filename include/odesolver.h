@@ -26,6 +26,7 @@
 
 #ifdef USE_CVODE
 #include <cvode/cvode.h>
+#include <sundials/sundials_linearsolver.h>
 #endif
 
 #include <vector>
@@ -72,6 +73,22 @@ class ODESOLVER_EXPORT ODESolver
 #endif
     };
 
+    enum IterationMethod
+    {
+      FUNCTIONAL = 1,
+      NEWTON = 2
+    };
+
+    enum LinearSolverType
+    {
+      GMRES, //scaled, preconditioned GMRES
+      FGMRES,
+      Bi_CGStab,
+      TFQMR,
+      PCG,
+    };
+
+
     /*!
      * \brief ODESolver
      * \param maxSize
@@ -85,6 +102,11 @@ class ODESOLVER_EXPORT ODESolver
      * \brief initialize
      */
     void initialize();
+
+    /*!
+     * \brief initializeLinearSolver
+     */
+    void initializeLinearSolver();
 
     /*!
      * \brief size
@@ -109,6 +131,30 @@ class ODESOLVER_EXPORT ODESolver
      * \param solverType
      */
     void setSolverType(SolverType solverType);
+
+    /*!
+     * \brief solverIterationMethod
+     * \return
+     */
+    IterationMethod solverIterationMethod() const;
+
+    /*!
+     * \brief setSolverIterationMethod
+     * \param iterationMethod
+     */
+    void setSolverIterationMethod(IterationMethod iterationMethod);
+
+    /*!
+     * \brief linearSolverType
+     * \return
+     */
+    LinearSolverType linearSolverType() const;
+
+    /*!
+     * \brief setLinearSolverType
+     * \param linearSolverType
+     */
+    void setLinearSolverType(LinearSolverType linearSolverType);
 
     /*!
      * \brief maxIterations
@@ -314,6 +360,9 @@ class ODESOLVER_EXPORT ODESolver
 
 #ifdef USE_CVODE
     void* m_cvodeSolver;
+    IterationMethod m_solverIterationMethod;
+    LinearSolverType m_linearSolverType;
+    SUNLinearSolver m_linearSolver;
     N_Vector m_cvy;
 #endif
 
