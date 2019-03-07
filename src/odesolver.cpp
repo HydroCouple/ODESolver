@@ -100,10 +100,7 @@ void ODESolver::initialize()
     case CVODE_ADAMS:
       {
 
-
         m_cvodeSolver = CVodeCreate(CV_ADAMS, m_solverIterationMethod);
-//        CVodeSetMaxHnilWarns(m_cvodeSolver,1);
-
         m_solver = &ODESolver::solveCVODE;
 
 #ifdef USE_CVODE_OPENMP
@@ -126,7 +123,6 @@ void ODESolver::initialize()
       {
 
         m_cvodeSolver = CVodeCreate(CV_BDF, m_solverIterationMethod);
-//        CVodeSetMaxHnilWarns(m_cvodeSolver,1);
         m_solver = &ODESolver::solveCVODE;
 
 #ifdef USE_CVODE_OPENMP
@@ -634,6 +630,11 @@ int ODESolver::solveCVODE(double y[], int n, double t, double dt, double yout[],
   while (tOut < tNext)
   {
     result = CVode(m_cvodeSolver, tNext, ycvout, &tOut, CV_NORMAL);
+
+    if(result)
+    {
+      return result;
+    }
   }
 
   long currentIterations = 0;
