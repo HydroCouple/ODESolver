@@ -25,6 +25,8 @@
 #include <cvode/cvode.h>
 #include <cvode/cvode_spils.h>
 #include <nvector/nvector_serial.h>
+#include <sunnonlinsol/sunnonlinsol_newton.h>
+#include <sunnonlinsol/sunnonlinsol_fixedpoint.h>
 #include <sunlinsol/sunlinsol_spgmr.h>
 #include <sunlinsol/sunlinsol_spfgmr.h>
 #include <sunlinsol/sunlinsol_spbcgs.h>
@@ -66,6 +68,7 @@ ODESolver::ODESolver(int size, SolverType solverType)
     m_solverIterationMethod(ODESolver::IterationMethod::FUNCTIONAL),
     m_linearSolverType(ODESolver::LinearSolverType::GMRES),
     m_linearSolver(nullptr),
+    m_nonLinearSolver(nullptr),
     m_cvy (nullptr)
   #endif
 {
@@ -100,7 +103,7 @@ void ODESolver::initialize()
     case CVODE_ADAMS:
       {
 
-        m_cvodeSolver = CVodeCreate(CV_ADAMS, m_solverIterationMethod);
+        m_cvodeSolver = CVodeCreate(CV_ADAMS);
         m_solver = &ODESolver::solveCVODE;
 
 #ifdef USE_CVODE_OPENMP
@@ -114,15 +117,15 @@ void ODESolver::initialize()
         CVodeSetMaxNumSteps(m_cvodeSolver, m_maxSteps);
         CVodeSetMaxOrd(m_cvodeSolver, std::min(m_order, 12));
         CVodeSStolerances(m_cvodeSolver, m_relTol, m_absTol);
-
         initializeLinearSolver();
+        initializeNonLinearSolver();
 
       }
       break;
     case CVODE_BDF:
       {
 
-        m_cvodeSolver = CVodeCreate(CV_BDF, m_solverIterationMethod);
+        m_cvodeSolver = CVodeCreate(CV_BDF);
         m_solver = &ODESolver::solveCVODE;
 
 #ifdef USE_CVODE_OPENMP
@@ -136,8 +139,8 @@ void ODESolver::initialize()
         CVodeSetMaxNumSteps(m_cvodeSolver, m_maxSteps);
         CVodeSetMaxOrd(m_cvodeSolver, std::min(m_order, 5));
         CVodeSStolerances(m_cvodeSolver, m_relTol, m_absTol);
-
         initializeLinearSolver();
+        initializeNonLinearSolver();
       }
       break;
 #endif
@@ -194,6 +197,25 @@ void ODESolver::initializeLinearSolver()
         break;
     }
   }
+}
+
+void ODESolver::initializeNonLinearSolver()
+{
+  switch (m_solverIterationMethod)
+  {
+    case ODESolver::NEWTON:
+      {
+        m_nonLinearSolver = SUNNonlinSol_Newton(m_cvy);
+      }
+      break;
+    case ODESolver::FUNCTIONAL:
+      {
+        m_nonLinearSolver = SUNNonlinSol_FixedPoint(m_cvy, 1);
+      }
+      break;
+  }
+
+  CVodeSetNonlinearSolver(m_cvodeSolver, m_nonLinearSolver);
 }
 
 int ODESolver::size() const
@@ -640,7 +662,7 @@ int ODESolver::solveCVODE(double y[], int n, double t, double dt, double yout[],
   long currentIterations = 0;
   CVodeGetNumSteps(m_cvodeSolver, &currentIterations);
 
-  m_currentIterations = currentIterations;
+  m_currentIterations = static_cast<int>(currentIterations);
 
 #ifdef USE_CVODE_OPENMP
   N_VDestroy_OpenMP(ycvout);
@@ -689,6 +711,11 @@ void ODESolver::clearMemory()
     if(m_linearSolver)
     {
       SUNLinSolFree(m_linearSolver);
+    }
+
+    if(m_nonLinearSolver)
+    {
+      SUNNonlinSolFree(m_nonLinearSolver);
     }
   }
 #endif

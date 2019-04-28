@@ -109,6 +109,11 @@ class ODESOLVER_EXPORT ODESolver
     void initializeLinearSolver();
 
     /*!
+     * \brief initializeNonLinearSolver
+     */
+    void initializeNonLinearSolver();
+
+    /*!
      * \brief size
      * \return
      */
@@ -363,6 +368,7 @@ class ODESOLVER_EXPORT ODESolver
     IterationMethod m_solverIterationMethod;
     LinearSolverType m_linearSolverType;
     SUNLinearSolver m_linearSolver;
+    SUNNonlinearSolver m_nonLinearSolver;
     N_Vector m_cvy;
 #endif
 
